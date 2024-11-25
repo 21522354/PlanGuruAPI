@@ -38,6 +38,40 @@ namespace Infrastructure.Persistence
             modelBuilder.ApplyConfiguration(new PostShareConfiguration());
             modelBuilder.ApplyConfiguration(new ChatImagesAndVideosConfiguration());
 
+            modelBuilder.Entity<Comment>(entity =>
+            {
+                // Thiết lập khóa chính cho Comment
+                entity.HasKey(c => c.CommentId);
+
+                // Quan hệ 1-n với User (1 User có nhiều Comment)
+                entity.HasOne(c => c.User)
+                      .WithMany(u => u.Comments)  // Assumes User entity has ICollection<Comment> Comments
+                      .HasForeignKey(c => c.UserId)
+                      .OnDelete(DeleteBehavior.Restrict); // Tránh xóa cascade
+
+                // Quan hệ 1-n với Post (1 Post có nhiều Comment)
+                entity.HasOne(c => c.Post)
+                      .WithMany(p => p.PostComments)  // Assumes Post entity has ICollection<Comment> Comments
+                      .HasForeignKey(c => c.PostId)
+                      .OnDelete(DeleteBehavior.Restrict); // Tránh xóa cascade
+
+                // Quan hệ đệ quy với ParentComment (1 Comment có thể là cha của nhiều Comment)
+                entity.HasOne(c => c.ParentComment)
+                      .WithMany() // Không cần collection ở Comment cho ParentComment
+                      .HasForeignKey(c => c.ParentCommentId)
+                      .OnDelete(DeleteBehavior.Restrict); // Ngăn xóa cascade để tránh vòng lặp
+
+                // Cấu hình ICollection<CommentUpvote> và ICollection<CommentDevote>
+                entity.HasMany(c => c.CommentUpvotes)
+                      .WithOne(cu => cu.Comment)  // Assumes CommentUpvote has Comment navigation property
+                      .HasForeignKey(cu => cu.CommentId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(c => c.CommentDevotes)
+                      .WithOne(cd => cd.Comment)  // Assumes CommentDevote has Comment navigation property
+                      .HasForeignKey(cd => cd.CommentId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
             base.OnModelCreating(modelBuilder);
         }
     }
