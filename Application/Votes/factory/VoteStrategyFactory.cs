@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Application.Votes.strategy;
 
-namespace Application.Votes
+namespace Application.Votes.factory
 {
     public class VoteStrategyFactory
     {

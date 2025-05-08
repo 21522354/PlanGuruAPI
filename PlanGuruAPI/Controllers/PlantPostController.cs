@@ -2,7 +2,7 @@
 using Application.PlantPosts.Command.CreatePost;
 using Application.PlantPosts.Query.GetPlantPosts;
 using Application.PlantPosts.Query.GetTags;
-using Application.Votes;
+using Application.Votes.factory;
 using AutoMapper;
 using Domain.Entities;
 using Infrastructure.Persistence;

@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interface.Persistence;
-using Application.Votes;
+using Application.Votes.factory;
+using Application.Votes.strategy;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repository;
 using Infrastructure.Services;

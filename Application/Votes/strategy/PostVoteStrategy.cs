@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Application.Votes
+namespace Application.Votes.strategy
 {
     public class PostVoteStrategy : IVoteStrategy
     {

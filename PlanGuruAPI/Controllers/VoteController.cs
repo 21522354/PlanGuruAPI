@@ -1,5 +1,5 @@
 ﻿using Application.Common.Interface.Persistence;
-using Application.Votes;
+using Application.Votes.factory;
 using Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using PlanGuruAPI.DTOs;

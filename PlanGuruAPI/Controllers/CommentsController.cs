@@ -1,7 +1,7 @@
 ﻿using Application.Comments.Command;
 using Application.Common.Interface.Persistence;
 using Application.PlantPosts.Query.GetPlantPosts;
-using Application.Votes;
+using Application.Votes.factory;
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -17,13 +17,16 @@ namespace PlanGuruAPI.Controllers
         private readonly ISender _mediator;
         private readonly ICommentRepository _commentRepository;
         private readonly VoteStrategyFactory _voteStrategyFactory;
+        private readonly CommentVoteStrategyFactory _commentVoteStrategyFactory;
 
-        public CommentsController(ISender mediator, ICommentRepository commentRepository, VoteStrategyFactory voteStrategyFactory)
+        public CommentsController(ISender mediator, ICommentRepository commentRepository, VoteStrategyFactory voteStrategyFactory, CommentVoteStrategyFactory commentVoteStrategyFactory)
         {
             _mediator = mediator;
             _commentRepository = commentRepository;
             _voteStrategyFactory = voteStrategyFactory;
+            _commentVoteStrategyFactory = commentVoteStrategyFactory;
         }
+
 
         [HttpPost]
         public async Task<IActionResult> CreateComment([FromBody] CreateCommentDto createCommentDto)
@@ -89,7 +92,7 @@ namespace PlanGuruAPI.Controllers
 
             foreach (var comment in comments)
             {
-                var commentVoteStrategy = _voteStrategyFactory.GetStrategy(TargetType.Comment.ToString());
+                var commentVoteStrategy = _commentVoteStrategyFactory.CreateStrategy();
                 var upvoteCount = await commentVoteStrategy.GetVoteCountAsync(comment.Id, TargetType.Comment, true);
                 var devoteCount = await commentVoteStrategy.GetVoteCountAsync(comment.Id, TargetType.Comment, false);
 

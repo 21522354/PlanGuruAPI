@@ -1,4 +1,5 @@
 ﻿using Application.Common.Behavior;
+using Application.Votes.factory;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using MediatR;
@@ -20,6 +21,9 @@ namespace Application
 
             services.AddFluentValidation(fv =>
                 fv.RegisterValidatorsFromAssembly(Assembly.GetExecutingAssembly()));
+
+            services.AddScoped<VoteStrategyAbstractFactory, CommentVoteStrategyFactory>();
+            services.AddScoped<VoteStrategyAbstractFactory, PostVoteStrategyFactory>();
 
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 

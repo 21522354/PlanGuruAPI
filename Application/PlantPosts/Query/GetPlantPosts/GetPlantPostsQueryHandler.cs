@@ -1,6 +1,6 @@
 ﻿using Application.Common.Interface.Persistence;
 using Application.PlantPosts.Common.GetPlantPosts;
-using Application.Votes;
+using Application.Votes.factory;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
