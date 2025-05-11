@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using PlanGuruAPI.Controllers;
 using PlanGuruAPI.GraphQL.Mutations;
 using PlanGuruAPI.GraphQL.Queries;
 using PlanGuruAPI.GraphQL.Schemas;
@@ -97,6 +98,12 @@ namespace PlanGuruAPI
                 c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None); // Collapse mặc định
             });
 
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            };
+
             app.UseHttpsRedirection();
 
             // Ensure CORS is applied before any endpoints that require it
@@ -114,6 +121,10 @@ namespace PlanGuruAPI
             // Map controllers and SignalR hubs
             app.MapControllers();
             app.MapHub<ChatHub>("/chatHub").RequireCors("AllowSpecificOrigin");
+
+            app.MapUserEndpoints();
+
+            app.MapPostEndpoints();
 
             app.Run();
         }
