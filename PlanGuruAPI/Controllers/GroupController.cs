@@ -1,7 +1,9 @@
 ﻿using Application.PlantPosts.Common.CreatePlantPost;
+using Application.Users.Querry.GetUserById;
 using AutoMapper;
 using Domain.Entities;
 using Infrastructure.Persistence;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,18 +18,22 @@ namespace PlanGuruAPI.Controllers
     public class GroupController : ControllerBase
     {
         private readonly PlanGuruDBContext _context;
+        private readonly ISender _mediator;
         private readonly IMapper _mapper;
 
-        public GroupController(PlanGuruDBContext context, IMapper mapper)
+        public GroupController(PlanGuruDBContext context, ISender mediator, IMapper mapper)
         {
             _context = context;
+            _mediator = mediator;
             _mapper = mapper;
         }
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetAllGroup(Guid userId)
         {
-            var checkUser = await _context.Users.FindAsync(userId);     
-            if (checkUser == null)
+            var query = new GetUserByIdQuery { UserId = userId };
+            var user = await _mediator.Send(query);
+
+            if (user == null)
             {
                 return BadRequest("Can't find this user");
             }

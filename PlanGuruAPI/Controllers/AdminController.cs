@@ -1,10 +1,13 @@
 ﻿using Application.Common.Interface.Persistence;
 using Application.PlantPosts.Common.GetPlantPosts;
+using Application.PlantPosts.Queries.GetUnApprovePost;
 using AutoMapper;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PlanGuruAPI.DTOs.AdminDTOs;
 using PlanGuruAPI.DTOs.PlantPostDTOs;
+using Application.PlantPosts.DTOs;
 
 namespace PlanGuruAPI.Controllers
 {
@@ -15,58 +18,31 @@ namespace PlanGuruAPI.Controllers
         private readonly IPlantPostRepository _planPostRepository;
         private readonly IMapper _mapper;
         private readonly IUserRepository _userRepository;
+        private readonly IMediator _mediator;
 
-        public AdminController(IPlantPostRepository plantPostRepository, IMapper mapper, IUserRepository userRepository)
+        public AdminController(IPlantPostRepository plantPostRepository, IMapper mapper, IUserRepository userRepository, IMediator mediator)
         {
             _planPostRepository = plantPostRepository;
             _mapper = mapper;
             _userRepository = userRepository;
+            _mediator = mediator;
         }
         [HttpPost("approvePost")]
-        public async Task<IActionResult> ApprovePost([FromBody]ApprovePostRequest request)
+        public async Task<IActionResult> ApprovePost([FromBody] ApprovePostRequest request)
         {
-            var post = await _planPostRepository.GetPostByIdAsync(request.PostId);  
+            var post = await _planPostRepository.GetPostByIdAsync(request.PostId);
             await _planPostRepository.ApprovePostByAdmin(post);
             return Ok("Post approved");
         }
         [HttpGet("unApprovePosts")]
         public async Task<IActionResult> GetUnApprovePost()
         {
-            var listUnApprovedPost = await _planPostRepository.GetUnApprovedPost();
-            listUnApprovedPost = listUnApprovedPost.Where(p => p.GroupId == null).ToList();
-            listUnApprovedPost = listUnApprovedPost.OrderByDescending(p => p.CreatedAt).ToList();
-            var listUnApprovedPostReadDTO = new List<PostReadDTO>();
-            foreach (var post in listUnApprovedPost)
-            {
-                var user = await _userRepository.GetByIdAsync(post.UserId);
-
-                var listImages = await _planPostRepository.GetImageForPostAsync(post.Id);
-                var listImagesString = listImages.Select(p => p.Image);
-
-                var postReadDTO = new PostReadDTO()
-                {
-                    UserId = user.UserId,
-                    UserAvatar = user.Avatar,
-                    UserNickName = user.Name,
-                    Background = post.Background,
-                    CreatedDate = FormatCreatedAt(post.CreatedAt),
-                    CreatedDateDatetime = post.CreatedAt,
-                    Description = post.Description,
-                    NumberOfComment = post.PostComments.Count,
-                    NumberOfDevote = post.PostDevotes.Count,
-                    NumberOfShare = post.PostShares.Count,
-                    NumberOfUpvote = post.PostUpvotes.Count,
-                    PostId = post.Id,
-                    Tag = post.Tag,
-                    Title = post.Title,
-                    Images = listImagesString
-                };
-                listUnApprovedPostReadDTO.Add(postReadDTO);
-            }
-            return Ok(listUnApprovedPostReadDTO);
+            var query = new GetUnApprovePostQuery();
+            var result = await _mediator.Send(query);
+            return Ok(result);
         }
         [HttpPost("unApprovePost")]
-        public async Task<IActionResult> UnApprovePost([FromBody]ApprovePostRequest request)
+        public async Task<IActionResult> UnApprovePost([FromBody] ApprovePostRequest request)
         {
             var post = await _planPostRepository.GetPostByIdAsync(request.PostId);
             await _planPostRepository.DeletePostAsync(post.Id);

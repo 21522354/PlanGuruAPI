@@ -1,8 +1,6 @@
-﻿// This file has been moved to the Application project under Application/Orders/DTOs/OrderReadDTO.cs.
-using Domain.Entities.ECommerce;
-using Domain.Entities;
+using System;
 
-namespace PlanGuruAPI.DTOs.OrderDTOs
+namespace Application.Orders.DTOs
 {
     public class OrderReadDTO
     {
@@ -12,8 +10,8 @@ namespace PlanGuruAPI.DTOs.OrderDTOs
         public Guid SellerId { get; set; }
         public int Quantity { get; set; }
         public double TotalPrice { get; set; }
-        public string ShippingAddress { get; set; }
-        public string Status { get; set; }
+        public string ShippingAddress { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
     }
 }

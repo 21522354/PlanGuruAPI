@@ -1,4 +1,6 @@
-﻿namespace PlanGuruAPI.DTOs.PlantPostDTOs
+﻿// This file has been moved to the Application project under Application/PlantPosts/DTOs/PostReadDTO.cs.
+
+namespace PlanGuruAPI.DTOs.PlantPostDTOs
 {
     public class PostReadDTO
     {
@@ -14,9 +16,9 @@
         public int NumberOfComment { get; set; }
         public int NumberOfShare { get; set; }
         public string CreatedDate { get; set; }
-        public DateTime CreatedDateDatetime { get; set; }   
+        public DateTime CreatedDateDatetime { get; set; }
         public string Title { get; set; }
-        public IEnumerable<string> Images { get; set; }        
+        public IEnumerable<string> Images { get; set; }
 
     }
 }

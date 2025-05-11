@@ -1,6 +1,7 @@
 using Application.Users.Command.SetNameAndAvatar;
 using Application.Users.Command.SignUp;
 using Application.Users.Common;
+using Application.Users.Querry.GetUserById;
 using Application.Users.Querry.Login;
 using AutoMapper;
 using Domain.Entities;
@@ -70,12 +71,15 @@ namespace PlanGuruAPI.Controllers
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetUserById(Guid userId)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if(user == null)
+            var query = new GetUserByIdQuery { UserId = userId };
+            var user = await _mediator.Send(query);
+
+            if (user == null)
             {
                 return NotFound("Can't find this user");
             }
-            return Ok(new { user.UserId, user.Name, user.Avatar, user.Email, user.IsHavePremium });
+
+            return Ok(user);
         }
         [HttpPost("goPremium")]
         public async Task<IActionResult> GoPremium(GoPremiumDTO request)

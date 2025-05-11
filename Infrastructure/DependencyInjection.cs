@@ -39,6 +39,7 @@ namespace Infrastructure
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IVoteRepository, VoteRepository>();
             services.AddScoped<IQuizManager, QuizServices>();
+            services.AddScoped<IOrderRepository, OrderRepository>();
 
             return services;
         }

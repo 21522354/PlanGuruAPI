@@ -1,10 +1,15 @@
-﻿using AutoMapper;
+﻿using Application.Orders.Queries.GetListOrderByUserId;
+using Application.Orders.DTOs;
+using AutoMapper;
 using Domain.Entities.ECommerce;
 using Infrastructure.Persistence;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlanGuruAPI.DTOs.OrderDTOs;
+using OrderReadDTO = PlanGuruAPI.DTOs.OrderDTOs.OrderReadDTO;
+using Application.Users.Queries.CheckUserExists;
 
 namespace PlanGuruAPI.Controllers
 {
@@ -14,11 +19,13 @@ namespace PlanGuruAPI.Controllers
     {
         private readonly PlanGuruDBContext _context;
         private readonly IMapper _mapper;
+        private readonly IMediator _mediator;
 
-        public OrderController(PlanGuruDBContext context, IMapper mapper)
+        public OrderController(PlanGuruDBContext context, IMapper mapper, IMediator mediator)
         {
             _context = context;
             _mapper = mapper;
+            _mediator = mediator;
         }
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -29,23 +36,26 @@ namespace PlanGuruAPI.Controllers
         [HttpGet("{orderId}")]
         public async Task<IActionResult> GetOrderById(Guid orderId)
         {
-            var order = await _context.Orders.Include(p => p.Product).FirstOrDefaultAsync(p => p.Id == orderId);   
-            if(order == null)
+            var order = await _context.Orders.Include(p => p.Product).FirstOrDefaultAsync(p => p.Id == orderId);
+            if (order == null)
             {
                 return NotFound("Can't find this order");
             }
-            return Ok(_mapper.Map<OrderReadDTO>(order));
+            return Ok(_mapper.Map<Application.Orders.DTOs.OrderReadDTO>(order));
         }
         [HttpGet("users/{userId}")]
         public async Task<IActionResult> GetListOrderByUserId(Guid userId)
         {
-            var checkUser = await _context.Users.FindAsync(userId); 
-            if(checkUser == null)
+            var userExistsQuery = new CheckUserExistsQuery { UserId = userId };
+            var userExists = await _mediator.Send(userExistsQuery);
+            if (!userExists)
             {
-                return BadRequest("This user is not exist");
+                return BadRequest("This user does not exist");
             }
-            var listOrder = await _context.Orders.Include(p => p.Product).Where(p => p.UserId == userId).ToListAsync();
-            return Ok(_mapper.Map<List<OrderReadDTO>>(listOrder));
+
+            var query = new GetListOrderByUserIdQuery { UserId = userId };
+            var result = await _mediator.Send(query);
+            return Ok(result);
         }
         [HttpGet("shops/{shopId}")]
         public async Task<IActionResult> GetListOrderByShopId(Guid shopId)
@@ -71,14 +81,14 @@ namespace PlanGuruAPI.Controllers
             {
                 return BadRequest("This product is not exist");
             }
-            var newOrder = _mapper.Map<Order>(order);   
-            newOrder.Id = Guid.NewGuid();   
+            var newOrder = _mapper.Map<Order>(order);
+            newOrder.Id = Guid.NewGuid();
             newOrder.TotalPrice = order.Quantity * checkProduct.Price;
             newOrder.Status = "Not Paid";
             newOrder.CreatedAt = DateTime.Now;
             await _context.Orders.AddAsync(newOrder);
             await _context.SaveChangesAsync();
-            return Ok(_mapper.Map<OrderReadDTO>(newOrder));
+            return Ok(_mapper.Map<Application.Orders.DTOs.OrderReadDTO>(newOrder));
         }
         [HttpPost("confirmPayment")]
         public async Task<IActionResult> ConfirmPayment(Guid orderId)
@@ -137,7 +147,7 @@ namespace PlanGuruAPI.Controllers
             order.LastModifiedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
-            return Ok(_mapper.Map<OrderReadDTO>(order));
+            return Ok(_mapper.Map<Application.Orders.DTOs.OrderReadDTO>(order));
         }
 
         [HttpDelete("{orderId}")]
