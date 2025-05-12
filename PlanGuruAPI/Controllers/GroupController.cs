@@ -5,6 +5,8 @@ using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PlanGuruAPI.CoR.Impl;
+using PlanGuruAPI.CoR;
 using PlanGuruAPI.DTOs.AdminDTOs;
 using PlanGuruAPI.DTOs.GroupDTOs;
 using PlanGuruAPI.DTOs.PlantPostDTOs;
@@ -325,45 +327,21 @@ namespace PlanGuruAPI.Controllers
                 return BadRequest("Can't find this group");
             }
 
-            if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
+
+            // Chain of Responsibility setup
+            var textValidation = new TextValidationHandler();
+            var profanityFilter = new ProfanityFilterHandler();
+            var imageValidation = new ImageValidationHandler();
+
+            textValidation.SetNext(profanityFilter);
+            profanityFilter.SetNext(imageValidation);
+
+            bool isValid = await textValidation.HandleAsync(request);
+            if (!isValid)
             {
-                return BadRequest("Invalid title");
+                return BadRequest("Post validation failed.");
             }
 
-            if (string.IsNullOrWhiteSpace(request.Description) || request.Description.Length > 2000)
-            {
-                return BadRequest("Invalid description");
-            }
-
-            string[] bannedWords = { "đm", "vcl", "cc", "shit", "fuck" };
-            bool containsBadWords = bannedWords.Any(word =>
-                request.Title.ToLower().Contains(word) || request.Description.ToLower().Contains(word));
-
-            if (containsBadWords)
-            {
-                return BadRequest("Your post contains inappropriate words.");
-            }
-
-            if (request.Images == null || !request.Images.Any())
-            {
-                return BadRequest("At least one image is required.");
-            }
-
-            var allowedExtensions = new List<string> { ".jpg", ".jpeg", ".png" };
-
-            foreach (var image in request.Images)
-            {
-                if (string.IsNullOrWhiteSpace(image))
-                {
-                    return BadRequest("One or more image names are empty.");
-                }
-
-                var extension = Path.GetExtension(image).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return BadRequest($"Invalid image format for '{image}'. Only JPG, JPEG, and PNG are allowed.");
-                }
-            }
 
             var post = new Post
             {
