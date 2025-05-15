@@ -3,6 +3,7 @@ using Application.Common.Interface.Persistence;
 using Application.PlantPosts.Query.GetPlantPosts;
 using Application.Votes;
 using Domain.Entities;
+using Infrastructure.Persistence.Repository;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PlanGuruAPI.DTOs;
@@ -16,13 +17,19 @@ namespace PlanGuruAPI.Controllers
     {
         private readonly ISender _mediator;
         private readonly ICommentRepository _commentRepository;
+        private readonly IPlantPostRepository _postRepository;
+        private readonly IVoteRepository _voteRepository;
+        private readonly IUserRepository _userRepository;
         private readonly VoteStrategyFactory _voteStrategyFactory;
 
-        public CommentsController(ISender mediator, ICommentRepository commentRepository, VoteStrategyFactory voteStrategyFactory)
+        public CommentsController(ISender mediator, ICommentRepository commentRepository, VoteStrategyFactory voteStrategyFactory, IPlantPostRepository postRepository, IVoteRepository voteRepository, IUserRepository userRepository)
         {
             _mediator = mediator;
             _commentRepository = commentRepository;
             _voteStrategyFactory = voteStrategyFactory;
+            _postRepository = postRepository;
+            _voteRepository = voteRepository;
+            _userRepository = userRepository;
         }
 
         [HttpPost]
@@ -112,6 +119,32 @@ namespace PlanGuruAPI.Controllers
                     HasDevoted = hasDevoted  
                 };
 
+                foreach (var reply in comment.Replies)
+                {
+                    var replyVoteStrategy = _voteStrategyFactory.GetStrategy(TargetType.Comment.ToString());
+                    var replyUpvoteCount = await replyVoteStrategy.GetVoteCountAsync(reply.Id, TargetType.Comment, true);
+                    var replyDevoteCount = await replyVoteStrategy.GetVoteCountAsync(reply.Id, TargetType.Comment, false);
+
+                    var hasReplyUpvoted = await replyVoteStrategy.HasUpvotedAsync(userId, reply.Id);
+                    var hasReplyDevoted = await replyVoteStrategy.HasDevotedAsync(userId, reply.Id);
+
+                    var replyCreatedAt = GetPlantPostsQueryHandler.FormatCreatedAt(reply.CreatedAt);
+
+                    var replyDto = new CommentDto
+                    {
+                        CommentId = reply.Id,
+                        UserId = reply.UserId,
+                        Name = reply.User.Name,
+                        Avatar = reply.User.Avatar,
+                        Message = reply.Message,
+                        CreatedAt = replyCreatedAt,
+                        NumberOfUpvote = replyUpvoteCount,
+                        NumberOfDevote = replyDevoteCount,
+                        HasUpvoted = hasReplyUpvoted,
+                        HasDevoted = hasReplyDevoted
+                    };
+                    commentDto.Replies.Add(replyDto);
+                }
                 commentDtos.Add(commentDto);
             }
 
@@ -121,16 +154,26 @@ namespace PlanGuruAPI.Controllers
         [HttpPost("upvote")]
         public async Task<IActionResult> UpvoteComment([FromBody] UpvoteDto upvoteDto)
         {
+            var comment = await _commentRepository.GetCommentByIdAsync(upvoteDto.TargetId);
+            if (comment == null)
+            {
+                return Ok(new { status = "error", message = "Comment not found" });
+            }
+
             var voteDto = new VoteDto
             {
                 UserId = upvoteDto.UserId,
                 TargetId = upvoteDto.TargetId,
                 TargetType = TargetType.Comment,
-                IsUpvote = true
+                IsUpvote = true,
+                Comment = comment
             };
 
+            var visitor = new UpvoteVisitor(_postRepository, _commentRepository, _voteRepository, _userRepository);
+            voteDto.Accept(visitor, upvoteDto.UserId);
+
             var strategy = _voteStrategyFactory.GetStrategy(voteDto.TargetType.ToString());
-            await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
+            //await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
 
             var upvoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, true);
             var devoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, false);
@@ -141,16 +184,26 @@ namespace PlanGuruAPI.Controllers
         [HttpPost("devote")]
         public async Task<IActionResult> DevoteComment([FromBody] DevoteDto devoteDto)
         {
+            var comment = await _commentRepository.GetCommentByIdAsync(devoteDto.TargetId);
+            if (comment == null)
+            {
+                return Ok(new { status = "error", message = "Comment not found" });
+            }
+
             var voteDto = new VoteDto
             {
                 UserId = devoteDto.UserId,
                 TargetId = devoteDto.TargetId,
                 TargetType = TargetType.Comment,
-                IsUpvote = false
+                IsUpvote = false,
+                Comment = comment
             };
 
+            var visitor = new DevoteVisitor(_postRepository, _commentRepository, _voteRepository, _userRepository);
+            voteDto.Accept(visitor, devoteDto.UserId);
+
             var strategy = _voteStrategyFactory.GetStrategy(voteDto.TargetType.ToString());
-            await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
+            //await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
 
             var upvoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, true);
             var devoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, false);
@@ -168,7 +221,7 @@ namespace PlanGuruAPI.Controllers
             }
 
             // Check if the parent comment is already a reply to another comment
-            if (parentComment.ParentCommentId != Guid.Empty)
+            if (parentComment.ParentCommentId != Guid.Empty && parentComment.ParentCommentId != null)
             {
                 var grandParentComment = await _commentRepository.GetCommentByIdAsync(parentComment.ParentCommentId);
                 if (grandParentComment?.ParentCommentId != Guid.Empty)

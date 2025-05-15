@@ -1,5 +1,4 @@
-﻿using Application.Comments;
-using Application.Common.Interface.Persistence;
+﻿using Application.Common.Interface.Persistence;
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -25,7 +24,7 @@ namespace Infrastructure.Persistence.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Comment> GetCommentByIdAsync(Guid commentId)
+        public async Task<Comment> GetCommentByIdAsync(Guid? commentId)
         {
             return await _context.Comments.FindAsync(commentId);
         }
@@ -37,34 +36,54 @@ namespace Infrastructure.Persistence.Repository
 
         public async Task<IEnumerable<Comment>> GetCommentsByPostIdAsync(Guid postId, Guid? parentCommentId = null)
         {
-            // Step 1: Lấy tất cả các comment theo postId
-            var commentsQuery = _context.Comments.Where(c => c.PostId == postId);
-            var comments = await commentsQuery.ToListAsync();
+            //// Step 1: Lấy tất cả các comment theo postId
+            //var commentsQuery = _context.Comments.Where(c => c.PostId == postId);
+            //var comments = await commentsQuery.ToListAsync();
 
-            // Step 2: Lọc theo parentCommentId nếu có
-            if (parentCommentId.HasValue && parentCommentId.Value != Guid.Empty)
+            //// Step 2: Lọc theo parentCommentId nếu có
+            //if (parentCommentId.HasValue && parentCommentId.Value != Guid.Empty)
+            //{
+            //    commentsQuery = commentsQuery.Where(c => c.ParentCommentId == parentCommentId.Value);
+            //}
+            //else
+            //{
+            //    commentsQuery = commentsQuery.Where(c => c.ParentCommentId == null || c.ParentCommentId == Guid.Empty);
+            //}
+            //comments = await commentsQuery.ToListAsync();
+
+            //// Step 3: Include User
+            //commentsQuery = commentsQuery.Include(c => c.User);
+            //comments = await commentsQuery.ToListAsync();
+
+            //// Step 4: Include CommentUpvotes
+            //commentsQuery = commentsQuery.Include(c => c.CommentUpvotes);
+            //comments = await commentsQuery.ToListAsync();
+
+            //// Step 5: Include CommentDevotes
+            //commentsQuery = commentsQuery.Include(c => c.CommentDevotes);
+            //comments = await commentsQuery.ToListAsync();
+
+            //return comments;
+
+            var allComments = await _context.Comments
+                .Where(c => c.PostId == postId &&
+                   (parentCommentId == null || c.ParentCommentId == parentCommentId))
+                .Include(c => c.User)
+                .Include(c => c.CommentUpvotes)
+                .Include(c => c.CommentDevotes)
+                .ToListAsync();
+
+            // Step 2: Group by ParentCommentId for fast lookup
+            var lookup = allComments.ToLookup(c => c.ParentCommentId);
+
+            // Step 3: Recursively build the tree
+            foreach (var comment in allComments)
             {
-                commentsQuery = commentsQuery.Where(c => c.ParentCommentId == parentCommentId.Value);
+                comment.Replies = lookup[comment.Id].ToList();
             }
-            else
-            {
-                commentsQuery = commentsQuery.Where(c => c.ParentCommentId == null || c.ParentCommentId == Guid.Empty);
-            }
-            comments = await commentsQuery.ToListAsync();
 
-            // Step 3: Include User
-            commentsQuery = commentsQuery.Include(c => c.User);
-            comments = await commentsQuery.ToListAsync();
-
-            // Step 4: Include CommentUpvotes
-            commentsQuery = commentsQuery.Include(c => c.CommentUpvotes);
-            comments = await commentsQuery.ToListAsync();
-
-            // Step 5: Include CommentDevotes
-            commentsQuery = commentsQuery.Include(c => c.CommentDevotes);
-            comments = await commentsQuery.ToListAsync();
-
-            return comments;
+            // Step 4: Return root-level comments (no parent)
+            return lookup[parentCommentId];
         }
 
         public async Task UpdateCommentAsync(Comment comment)

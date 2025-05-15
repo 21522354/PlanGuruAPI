@@ -22,5 +22,10 @@ namespace Domain.Entities
         public ICollection<Comment> PostComments { get; set; } = [];
         public ICollection<PostShare> PostShares { get; set; } = [];
         public ICollection<PostImage> PostImages { get; set; } = [];
+
+        //public void Accept(IVoteVisitor visitor, Guid userId)
+        //{
+        //    visitor.VisitPost(this, userId);
+        //}
     }
 }

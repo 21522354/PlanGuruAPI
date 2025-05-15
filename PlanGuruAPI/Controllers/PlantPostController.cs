@@ -25,18 +25,27 @@ namespace PlanGuruAPI.Controllers
         private readonly ISender _mediator;
         private readonly IMapper _mapper;
         private readonly IPlantPostRepository _postRepository;
+        private readonly ICommentRepository _commentRepository;
+        private readonly IVoteRepository _voteRepository;
+        private readonly IUserRepository _userRepository;
         private readonly VoteStrategyFactory _voteStrategyFactory;
 
         public PlantPostController(PlanGuruDBContext context,
             ISender mediator,
             IMapper mapper,
             IPlantPostRepository postRepository,
+            ICommentRepository commentRepository,
+            IVoteRepository voteRepository,
+            IUserRepository userRepository,
             VoteStrategyFactory voteStrategyFactory)
         {
             _context = context;
             _mediator = mediator;
             _mapper = mapper;
             _postRepository = postRepository;
+            _commentRepository = commentRepository;
+            _voteRepository = voteRepository;
+            _userRepository = userRepository;
             _voteStrategyFactory = voteStrategyFactory;
         }
 
@@ -107,16 +116,26 @@ namespace PlanGuruAPI.Controllers
         [HttpPost("upvote")]
         public async Task<IActionResult> UpvotePost([FromBody] UpvoteDto upvoteDto)
         {
+            var post = await _postRepository.GetPostByIdAsync(upvoteDto.TargetId);
+            if (post == null)
+            {
+                return Ok(new { status = "error", message = "Post not found" });
+            }
+
             var voteDto = new VoteDto
             {
                 UserId = upvoteDto.UserId,
                 TargetId = upvoteDto.TargetId,
                 TargetType = TargetType.Post,
-                IsUpvote = true
+                IsUpvote = true,
+                Post = post
             };
 
+            var visitor = new UpvoteVisitor(_postRepository, _commentRepository, _voteRepository, _userRepository);
+            voteDto.Accept(visitor, upvoteDto.UserId);
+
             var strategy = _voteStrategyFactory.GetStrategy(voteDto.TargetType.ToString());
-            await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
+            //await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
 
             var upvoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, true);
             var devoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, false);
@@ -127,16 +146,26 @@ namespace PlanGuruAPI.Controllers
         [HttpPost("devote")]
         public async Task<IActionResult> DevotePost([FromBody] DevoteDto devoteDto)
         {
+            var post = await _postRepository.GetPostByIdAsync(devoteDto.TargetId);
+            if (post == null)
+            {
+                return Ok(new { status = "error", message = "Post not found" });
+            }
+
             var voteDto = new VoteDto
             {
                 UserId = devoteDto.UserId,
                 TargetId = devoteDto.TargetId,
                 TargetType = TargetType.Post,
-                IsUpvote = false
+                IsUpvote = false,
+                Post = post
             };
 
+            var visitor = new DevoteVisitor(_postRepository, _commentRepository, _voteRepository, _userRepository);
+            voteDto.Accept(visitor, devoteDto.UserId);
+
             var strategy = _voteStrategyFactory.GetStrategy(voteDto.TargetType.ToString());
-            await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
+            //await strategy.HandleVoteAsync(voteDto.UserId, voteDto.TargetId, voteDto.IsUpvote);
 
             var upvoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, true);
             var devoteCount = await strategy.GetVoteCountAsync(voteDto.TargetId, voteDto.TargetType, false);

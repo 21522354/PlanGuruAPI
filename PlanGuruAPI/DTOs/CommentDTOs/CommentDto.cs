@@ -12,5 +12,7 @@
         public int NumberOfDevote { get; set; }
         public bool HasUpvoted { get; set; } // Thêm thuộc tính này
         public bool HasDevoted { get; set; } // Thêm thuộc tính này
+
+        public List<CommentDto> Replies { get; set; } = new List<CommentDto>(); // Danh sách các bình luận con
     }
 }
